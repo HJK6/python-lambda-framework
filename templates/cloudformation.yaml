@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Deploys a basic Lambda function
+
+Parameters:
+    Version:
+      Type: String
+      Description: S3 Infrastructure.zip File Version
+    AssetsBucket:
+      Type: String
+      Description: S3 Bucket where assets are stored
+    InfrastructureZip:
+      Type: String
+      Description: Name of Infrastructure zip
+
+Resources:
+  LogPermissionsPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      ManagedPolicyName: lambda-log-permissions
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Action: 
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+  S3AccessPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      ManagedPolicyName: lambda-s3-access
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Action: 
+              - "s3:*"
+            Resource:
+              - "*"
+
+  S3LambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: lambda.amazonaws.com
+        Path: '/'
+        ManagedPolicyArns:
+          - !Ref LogPermissionsPolicy
+          - !Ref S3AccessPolicy
+
+
+  GetDeploymentDetailsHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref AssetsBucket
+        S3Key: !Ref InfrastructureZip
+        S3ObjectVersion: !Ref Version
+      Description: Sample Lambda 
+      Handler: Handlers.getDeploymentDetailsHandler
+      Role: !GetAtt S3LambdaRole.Arn
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 300
